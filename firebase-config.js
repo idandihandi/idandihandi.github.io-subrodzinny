@@ -1,8 +1,7 @@
-// Firebase v11
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
-import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-analytics.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+import { getAnalytics, isSupported } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-analytics.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCffBZPf5HdnsZW_XmRnnvMx9IH8K-Gynw",
@@ -14,13 +13,12 @@ const firebaseConfig = {
   measurementId: "G-KFB5VZL9F3"
 };
 
-const app = initializeApp(firebaseConfig);
-
+export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 
-try {
-  getAnalytics(app);
-} catch (e) {
-  // Analytics nie działa na localhost i czasami na GitHub Pages
-}
+isSupported()
+  .then((supported) => {
+    if (supported) getAnalytics(app);
+  })
+  .catch((error) => console.warn("Analytics niedostępne:", error));
