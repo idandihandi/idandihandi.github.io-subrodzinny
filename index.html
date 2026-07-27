@@ -377,10 +377,11 @@
 
     document.querySelector('#listingForm').addEventListener('submit',async event=>{
       event.preventDefault();
+      const form=event.currentTarget;
       if(!currentUser){ showToast('Łączenie z Firebase — spróbuj ponownie.'); return; }
       const submit=event.submitter; submit.disabled=true; submit.textContent='Wysyłanie…';
       try{
-        const data=Object.fromEntries(new FormData(event.currentTarget));
+        const data=Object.fromEntries(new FormData(form));
         const service=data.service==='__other__'?data.customService.trim():data.service;
         if(!service) throw new Error('Wpisz nazwę platformy.');
         const listingRef=doc(collection(db,'listings'));
@@ -388,7 +389,7 @@
         batch.set(listingRef,{owner:data.owner.trim(),service,plan:data.plan.trim(),price:Number(data.price),spots:Number(data.spots),tags:data.tags.split(',').map(x=>x.trim()).filter(Boolean).slice(0,6),description:data.description.trim(),status:'pending',ownerUid:currentUser.uid,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
         batch.set(doc(db,'listingContacts',listingRef.id),{listingId:listingRef.id,contact:data.contact.trim(),ownerUid:currentUser.uid,createdAt:serverTimestamp()});
         await batch.commit();
-        event.currentTarget.reset(); customServiceField.classList.add('hidden'); customServiceInput.required=false;
+        form.reset(); customServiceField.classList.add('hidden'); customServiceInput.required=false;
         window.closeModal('listingModal'); showToast('Ogłoszenie wysłano do moderacji.');
       }catch(error){ console.error(error); showToast(error.message || 'Nie udało się dodać ogłoszenia.'); }
       finally{ submit.disabled=false; submit.textContent='Opublikuj'; }
@@ -396,13 +397,14 @@
 
     document.querySelector('#contactForm').addEventListener('submit',async event=>{
       event.preventDefault();
+      const form=event.currentTarget;
       if(!currentUser){ showToast('Łączenie z Firebase — spróbuj ponownie.'); return; }
       const listing=listings.find(item=>item.id===activeListingId); if(!listing)return;
       const submit=event.submitter; submit.disabled=true; submit.textContent='Wysyłanie…';
       try{
-        const data=Object.fromEntries(new FormData(event.currentTarget));
+        const data=Object.fromEntries(new FormData(form));
         await addDoc(collection(db,'applications'),{listingId:activeListingId,listingService:listing.service,listingOwner:listing.owner,name:data.name.trim(),reply:data.reply.trim(),message:data.message.trim(),senderUid:currentUser.uid,status:'new',createdAt:serverTimestamp()});
-        event.currentTarget.reset(); window.closeModal('contactModal'); showToast('Zgłoszenie zostało wysłane do właściciela przez moderatora.');
+        form.reset(); window.closeModal('contactModal'); showToast('Zgłoszenie zostało wysłane do właściciela przez moderatora.');
       }catch(error){ console.error(error); showToast('Nie udało się wysłać zgłoszenia.'); }
       finally{ submit.disabled=false; submit.textContent='Wyślij zgłoszenie'; }
     });
