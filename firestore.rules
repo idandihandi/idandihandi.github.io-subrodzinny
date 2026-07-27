@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isAdmin() {
+      return signedIn() && request.auth.token.email == 'admin@admin.com';
+    }
+    function validListing() {
+      return request.resource.data.keys().hasAll([
+        'owner','service','plan','price','spots','tags','description',
+        'status','ownerUid','createdAt','updatedAt'
+      ])
+      && request.resource.data.owner is string
+      && request.resource.data.owner.size() >= 2
+      && request.resource.data.owner.size() <= 40
+      && request.resource.data.service is string
+      && request.resource.data.service.size() >= 2
+      && request.resource.data.service.size() <= 60
+      && request.resource.data.plan is string
+      && request.resource.data.plan.size() >= 1
+      && request.resource.data.plan.size() <= 60
+      && request.resource.data.price is number
+      && request.resource.data.price >= 0
+      && request.resource.data.price <= 999
+      && request.resource.data.spots is int
+      && request.resource.data.spots >= 1
+      && request.resource.data.spots <= 10
+      && request.resource.data.tags is list
+      && request.resource.data.tags.size() <= 6
+      && request.resource.data.description is string
+      && request.resource.data.description.size() >= 10
+      && request.resource.data.description.size() <= 500;
+    }
+
+    match /listings/{listingId} {
+      allow read: if resource.data.status == 'approved' || isAdmin();
+      allow create: if signedIn()
+        && validListing()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.status == 'pending';
+      allow update, delete: if isAdmin();
+    }
+
+    match /listingContacts/{listingId} {
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.listingId == listingId
+        && request.resource.data.contact is string
+        && request.resource.data.contact.size() >= 3
+        && request.resource.data.contact.size() <= 80;
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /applications/{applicationId} {
+      allow create: if signedIn()
+        && request.resource.data.senderUid == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 2
+        && request.resource.data.name.size() <= 40
+        && request.resource.data.reply is string
+        && request.resource.data.reply.size() >= 3
+        && request.resource.data.reply.size() <= 80
+        && request.resource.data.message is string
+        && request.resource.data.message.size() >= 3
+        && request.resource.data.message.size() <= 500
+        && request.resource.data.status == 'new';
+      allow read, update, delete: if isAdmin();
+    }
+  }
+}
