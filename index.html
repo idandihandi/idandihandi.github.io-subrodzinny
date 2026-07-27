@@ -303,7 +303,7 @@
     import { signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js';
     import {
       collection, doc, setDoc, addDoc, writeBatch, serverTimestamp,
-      query, where, orderBy, onSnapshot
+      query, where, onSnapshot
     } from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js';
 
     let listings = [];
@@ -355,11 +355,23 @@
     });
 
     onAuthStateChanged(auth, user => { currentUser=user; });
-    signInAnonymously(auth).catch(error=>{ console.error(error); showToast('Nie udało się połączyć z Firebase. Sprawdź konfigurację.'); });
+    signInAnonymously(auth).catch(error=>{
+      console.error('Firebase Auth:', error);
+      const messages={
+        'auth/operation-not-allowed':'Włącz logowanie anonimowe w Firebase Authentication.',
+        'auth/unauthorized-domain':'Dodaj domenę GitHub Pages w Authentication → Settings → Authorized domains.',
+        'auth/invalid-api-key':'Nieprawidłowy klucz Firebase w firebase-config.js.'
+      };
+      showToast(messages[error.code] || `Błąd Firebase: ${error.code || error.message}`);
+    });
 
-    const approvedQuery=query(collection(db,'listings'),where('status','==','approved'),orderBy('createdAt','desc'));
+    const approvedQuery=query(collection(db,'listings'),where('status','==','approved'));
     onSnapshot(approvedQuery,snapshot=>{
-      listings=snapshot.docs.map(d=>({id:d.id,...d.data()}));
+      listings=snapshot.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>{
+        const aTime=a.createdAt?.toMillis?.()||0;
+        const bTime=b.createdAt?.toMillis?.()||0;
+        return bTime-aTime;
+      });
       renderListings();
     },error=>{ console.error(error); document.querySelector('#listings').innerHTML='<div class="empty"><strong>Nie udało się pobrać ogłoszeń.</strong><br>Sprawdź konfigurację Firebase i reguły Firestore.</div>'; });
 
