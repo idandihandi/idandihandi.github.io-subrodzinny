@@ -189,7 +189,34 @@ async function showPublicProfile(uid){const snap=await getDoc(doc(db,'users',uid
 $('#reviewForm').onsubmit=async e=>{e.preventDefault();if(!requireAuth())return;const form=e.currentTarget,d=Object.fromEntries(new FormData(form));try{await addDoc(collection(db,'reviews'),{targetUid:d.targetUid,authorUid:user.uid,authorName:userProfile?.displayName||'Użytkownik',rating:Number(d.rating),comment:d.comment.trim(),createdAt:serverTimestamp()});form.reset();closeModal('reviewModal');toast('Ocena została dodana.')}catch(err){console.error(err);toast('Nie udało się dodać oceny.')}};
 
 function chatIdFor(a,b,listingId='direct'){return[a,b].sort().join('_')+'_'+(listingId||'direct')}
-async function startChat(ownerUid,listingId){if(!requireAuth())return;if(ownerUid===user.uid)return toast('To jest Twoje ogłoszenie.');const id=chatIdFor(user.uid,ownerUid,listingId);const ref=doc(db,'chats',id),snap=await getDoc(ref);if(!snap.exists()){const ownerSnap=await getDoc(doc(db,'users',ownerUid));await setDoc(ref,{participantUids:[user.uid,ownerUid],participantNames:{[user.uid]:userProfile?.displayName||'Użytkownik',[ownerUid]:ownerSnap.data()?.displayName||'Użytkownik'},listingId:listingId||null,lastMessage:'',createdAt:serverTimestamp(),updatedAt:serverTimestamp()})}openModal('chatModal');setActiveChat(id)}
+async function startChat(ownerUid,listingId){
+  if(!requireAuth())return;
+  if(ownerUid===user.uid)return toast('To jest Twoje ogłoszenie.');
+
+  const id=chatIdFor(user.uid,ownerUid,listingId);
+  const ref=doc(db,'chats',id);
+
+  try{
+    const ownerSnap=await getDoc(doc(db,'users',ownerUid));
+
+    await setDoc(ref,{
+      participantUids:[user.uid,ownerUid],
+      participantNames:{
+        [user.uid]:userProfile?.displayName||user.displayName||'Użytkownik',
+        [ownerUid]:ownerSnap.data()?.displayName||'Użytkownik'
+      },
+      listingId:listingId||null,
+      lastMessage:'',
+      updatedAt:serverTimestamp()
+    },{merge:true});
+
+    openModal('chatModal');
+    setActiveChat(id);
+  }catch(err){
+    console.error('Błąd otwierania czatu:',err);
+    toast('Nie udało się otworzyć rozmowy.');
+  }
+}
 function listenChats(){onSnapshot(query(collection(db,'chats'),where('participantUids','array-contains',user.uid)),snap=>{chats=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.updatedAt?.seconds||0)-(a.updatedAt?.seconds||0));renderChats()})}
 function renderChats(){$('#chatList').innerHTML=chats.length?chats.map(c=>{const other=c.participantUids.find(x=>x!==user.uid),name=c.participantNames?.[other]||'Użytkownik';return`<div class="chat-item ${c.id===activeChatId?'active':''}" data-chat="${c.id}"><strong>${esc(name)}</strong><br><small class="muted">${esc(c.lastMessage||'Nowa rozmowa')}</small></div>`}).join(''):'<div class="empty">Brak rozmów.</div>';$$('[data-chat]').forEach(x=>x.onclick=()=>setActiveChat(x.dataset.chat))}
 function setActiveChat(id){activeChatId=id;renderChats();if(unsubMessages)unsubMessages();unsubMessages=onSnapshot(query(collection(db,'chats',id,'messages'),orderBy('createdAt','asc'),limit(200)),snap=>{const msgs=snap.docs.map(d=>d.data());$('#messages').innerHTML=msgs.length?msgs.map(m=>`<div class="message ${m.senderUid===user.uid?'mine':''}">${esc(m.text)}<small>${m.senderUid===user.uid?'Ty':esc(m.senderName||'Użytkownik')}</small></div>`).join(''):'<div class="empty">Napisz pierwszą wiadomość.</div>';$('#messages').scrollTop=$('#messages').scrollHeight})}
