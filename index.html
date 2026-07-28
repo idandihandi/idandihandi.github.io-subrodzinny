@@ -73,6 +73,8 @@ import { createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,onAut
 import { collection,doc,setDoc,addDoc,getDoc,getDocs,updateDoc,deleteDoc,serverTimestamp,query,where,onSnapshot,orderBy,limit,increment } from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js';
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const statusLabels={pending:"W moderacji",approved:"Zatwierdzone",rejected:"Odrzucone",active:"Aktywne",banned:"Zablokowane"};
+
 const esc=(v='')=>String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[c]));
 const money=v=>new Intl.NumberFormat('pl-PL',{style:'currency',currency:'PLN'}).format(Number(v));
 const initials=n=>(n||'U').split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();
@@ -187,7 +189,7 @@ async function openProfile(){
   f.elements.bio.value=userProfile.bio||'';
   try{
     const mine=await getDocs(query(collection(db,'listings'),where('ownerUid','==',user.uid)));
-    $('#myListings').innerHTML=mine.empty?'<p class="muted">Nie masz jeszcze ogłoszeń.</p>':mine.docs.map(d=>{const x=d.data();return`<div class="review"><strong>${esc(x.service)} · ${esc(x.plan)}</strong><br><small>Status: ${esc(x.status||'pending')}</small></div>`}).join('');
+    $('#myListings').innerHTML=mine.empty?'<p class="muted">Nie masz jeszcze ogłoszeń.</p>':mine.docs.map(d=>{const x=d.data();return`<div class="review"><strong>${esc(x.service)} · ${esc(x.plan)}</strong><br><small>Status: ${statusLabels[x.status||'pending'] || x.status}</small></div>`}).join('');
   }catch(err){
     console.error('Błąd ogłoszeń użytkownika:',err);
     $('#myListings').innerHTML='<p class="muted">Nie udało się pobrać ogłoszeń. Sprawdź reguły Firestore.</p>';
