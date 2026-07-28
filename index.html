@@ -69,7 +69,7 @@
 
 <script type="module">
 import { auth,db } from './firebase-config.js';
-import { createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,onAuthStateChanged,updateProfile } from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js';
+import { createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,onAuthStateChanged,updateProfile,setPersistence,browserLocalPersistence } from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js';
 import { collection,doc,setDoc,addDoc,getDoc,getDocs,updateDoc,deleteDoc,serverTimestamp,query,where,onSnapshot,orderBy,limit,increment } from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js';
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -78,13 +78,15 @@ const money=v=>new Intl.NumberFormat('pl-PL',{style:'currency',currency:'PLN'}).
 const initials=n=>(n||'U').split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();
 const colors={'YouTube Premium':'#ff2d44','Spotify':'#1db954','Apple One':'#242429','Microsoft 365':'#ef6a31','Canva':'#7b3ff2'};
 const shorts={'YouTube Premium':'YT','Spotify':'SP','Apple One':'A1','Microsoft 365':'M365','Canva':'C'};
-let user=null,userProfile=null,listings=[],favorites=new Set(),reviews=[],chats=[],activeChatId=null,unsubMessages=null,onlyFavorites=false;
+let user=null,userProfile=null,listings=[],favorites=new Set(),reviews=[],chats=[],activeChatId=null,unsubMessages=null,unsubChats=null,unsubFavorites=null,onlyFavorites=false;
 function toast(msg){$('#toast').textContent=msg;$('#toast').classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>$('#toast').classList.remove('show'),3800)}
 function updateMessageBadge(){const badge=$('#messageBadge');if(!badge)return;const count=chats.reduce((sum,c)=>sum+Number(c.unreadCounts?.[user?.uid]||0),0);badge.textContent=count>99?'99+':String(count);badge.classList.toggle('hidden',count===0)}
 function openModal(id){$('#'+id).classList.add('active');document.body.style.overflow='hidden'}
 function closeModal(id){$('#'+id).classList.remove('active');document.body.style.overflow=''}
 $$('[data-close]').forEach(b=>b.onclick=()=>closeModal(b.dataset.close));$$('.modal-backdrop').forEach(x=>x.onclick=e=>{if(e.target===x)closeModal(x.id)});
 function requireAuth(action){if(!user){openModal('authModal');toast('Zaloguj się, aby skorzystać z tej funkcji.');return false}return action?!!action():true}
+
+try{await setPersistence(auth,browserLocalPersistence)}catch(err){console.warn('Nie udało się ustawić trwałej sesji Firebase:',err)}
 
 const savedTheme=localStorage.getItem('rs-theme')||'light';document.documentElement.dataset.theme=savedTheme;$('#themeToggle').textContent=savedTheme==='dark'?'☀️':'🌙';
 $('#themeToggle').onclick=()=>{const next=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=next;localStorage.setItem('rs-theme',next);$('#themeToggle').textContent=next==='dark'?'☀️':'🌙'};
@@ -120,6 +122,9 @@ $('#loginForm').onsubmit=async e=>{e.preventDefault();const form=e.currentTarget
 $('#logoutBtn').onclick=async()=>{await signOut(auth);closeModal('profileModal');toast('Wylogowano.')};
 
 onAuthStateChanged(auth,async u=>{
+  if(unsubChats){unsubChats();unsubChats=null}
+  if(unsubFavorites){unsubFavorites();unsubFavorites=null}
+  if(unsubMessages){unsubMessages();unsubMessages=null}
   user=u;
   $('#authBtn').classList.toggle('hidden',!!u);
   $('#registerBtn').classList.toggle('hidden',!!u);
@@ -157,7 +162,7 @@ function customColor(n=''){let h=0;for(const c of n)h=c.charCodeAt(0)+((h<<5)-h)
 function renderListings(){const q=$('#search').value.trim().toLowerCase(),service=$('#serviceFilter').value,max=Number($('#priceFilter').value||Infinity),min=Number($('#spotsFilter').value||0);const standard=Object.keys(colors);const data=listings.filter(x=>{const hay=[x.service,x.plan,x.ownerName,x.description,...(x.tags||[])].join(' ').toLowerCase();const sm=!service||(service==='__custom__'?!standard.includes(x.service):x.service===service);return hay.includes(q)&&sm&&Number(x.price)<=max&&Number(x.spots)>=min&&(!onlyFavorites||favorites.has(x.id))});$('#listingCount').textContent=data.length;$('#spotsCount').textContent=data.reduce((s,x)=>s+Number(x.spots),0);$('#listings').innerHTML=data.length?data.map(x=>{const r=ratingFor(x.ownerUid),fav=favorites.has(x.id);return`<div class="card-wrap"><button class="favorite ${fav?'active':''}" data-fav="${x.id}" title="Ulubione">${fav?'♥':'♡'}</button><article class="card"><div class="card-top"><div class="service-icon" style="background:${colors[x.service]||customColor(x.service)}">${esc(shorts[x.service]||initials(x.service))}</div><div><h3>${esc(x.service)} · ${esc(x.plan)}</h3><button class="btn" style="padding:0;background:none;color:var(--muted)" data-profile="${x.ownerUid}">${esc(x.ownerName||'Użytkownik')}</button> <span class="rating">★ ${r.count?r.avg.toFixed(1):'—'} (${r.count})</span></div></div><div class="tags">${(x.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><p class="desc">${esc(x.description)}</p><div class="card-bottom"><div><div class="price">${money(x.price)}<small>za osobę / miesiąc</small></div><div class="spots">${x.spots} wolne miejsce/miejsca</div></div><button class="btn primary" data-chat-owner="${x.ownerUid}" data-listing="${x.id}">Napisz</button></div></article></div>`}).join(''):'<div class="empty"><strong>Brak pasujących ogłoszeń.</strong></div>';$$('[data-fav]').forEach(b=>b.onclick=()=>toggleFavorite(b.dataset.fav));$$('[data-profile]').forEach(b=>b.onclick=()=>showPublicProfile(b.dataset.profile));$$('[data-chat-owner]').forEach(b=>b.onclick=()=>startChat(b.dataset.chatOwner,b.dataset.listing))}
 ['search','serviceFilter','priceFilter','spotsFilter'].forEach(id=>$('#'+id).addEventListener('input',renderListings));
 
-function listenFavorites(){onSnapshot(collection(db,'favorites',user.uid,'items'),snap=>{favorites=new Set(snap.docs.map(d=>d.id));renderListings()})}
+function listenFavorites(){const uid=user?.uid;if(!uid)return;unsubFavorites=onSnapshot(collection(db,'favorites',uid,'items'),snap=>{if(user?.uid!==uid)return;favorites=new Set(snap.docs.map(d=>d.id));renderListings()},err=>{if(user?.uid!==uid)return;console.error('Błąd ulubionych:',err)})}
 async function toggleFavorite(id){if(!requireAuth())return;const ref=doc(db,'favorites',user.uid,'items',id);try{if(favorites.has(id))await deleteDoc(ref);else await setDoc(ref,{listingId:id,createdAt:serverTimestamp()})}catch(e){console.error(e);toast('Nie udało się zmienić ulubionych.')}}
 
 $('#serviceSelect').onchange=()=>{const show=$('#serviceSelect').value==='__other__';$('#customServiceField').classList.toggle('hidden',!show);$('#customService').required=show};
@@ -225,9 +230,23 @@ async function startChat(ownerUid,listingId){
     toast('Nie udało się otworzyć rozmowy.');
   }
 }
-function listenChats(){onSnapshot(query(collection(db,'chats'),where('participantUids','array-contains',user.uid)),snap=>{chats=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.updatedAt?.seconds||0)-(a.updatedAt?.seconds||0));renderChats();updateMessageBadge()},err=>{console.error('Błąd listy czatów:',err);toast('Nie udało się pobrać wiadomości.')})}
+function listenChats(){
+  const uid=user?.uid;
+  if(!uid)return;
+  unsubChats=onSnapshot(query(collection(db,'chats'),where('participantUids','array-contains',uid)),snap=>{
+    if(user?.uid!==uid)return;
+    chats=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.updatedAt?.seconds||0)-(a.updatedAt?.seconds||0));
+    renderChats();updateMessageBadge();
+  },err=>{
+    if(user?.uid!==uid)return;
+    console.error('Błąd listy czatów:',err.code,err.message,err);
+    if(err.code==='permission-denied')toast('Brak dostępu do wiadomości. Sprawdź reguły Firestore dla kolekcji chats.');
+    else if(err.code==='unavailable')toast('Chwilowy problem z połączeniem. Wiadomości odświeżą się automatycznie.');
+    else toast('Nie udało się pobrać wiadomości.');
+  });
+}
 function renderChats(){$('#chatList').innerHTML=chats.length?chats.map(c=>{const other=c.participantUids.find(x=>x!==user.uid),name=c.participantNames?.[other]||'Użytkownik',unread=Number(c.unreadCounts?.[user.uid]||0);return`<div class="chat-item ${c.id===activeChatId?'active':''}" data-chat="${c.id}"><strong>${esc(name)}</strong>${unread?` <span class="tag">${unread>99?'99+':unread}</span>`:''}<br><small class="muted">${esc(c.lastMessage||'Nowa rozmowa')}</small></div>`}).join(''):'<div class="empty">Brak rozmów.</div>';$$('[data-chat]').forEach(x=>x.onclick=()=>setActiveChat(x.dataset.chat))}
-async function setActiveChat(id){activeChatId=id;renderChats();if(user){try{await updateDoc(doc(db,'chats',id),{[`unreadCounts.${user.uid}`]:0})}catch(err){console.error('Nie udało się oznaczyć wiadomości jako przeczytanych:',err)}}if(unsubMessages)unsubMessages();unsubMessages=onSnapshot(query(collection(db,'chats',id,'messages'),orderBy('createdAt','asc'),limit(200)),snap=>{const msgs=snap.docs.map(d=>d.data());$('#messages').innerHTML=msgs.length?msgs.map(m=>`<div class="message ${m.senderUid===user.uid?'mine':''}">${esc(m.text)}<small>${m.senderUid===user.uid?'Ty':esc(m.senderName||'Użytkownik')}</small></div>`).join(''):'<div class="empty">Napisz pierwszą wiadomość.</div>';$('#messages').scrollTop=$('#messages').scrollHeight},err=>{console.error('Błąd wiadomości:',err);toast('Nie udało się pobrać rozmowy.')})}
+async function setActiveChat(id){const uid=user?.uid;if(!uid)return;activeChatId=id;renderChats();if(user){try{await updateDoc(doc(db,'chats',id),{[`unreadCounts.${user.uid}`]:0})}catch(err){console.error('Nie udało się oznaczyć wiadomości jako przeczytanych:',err)}}if(unsubMessages)unsubMessages();unsubMessages=onSnapshot(query(collection(db,'chats',id,'messages'),orderBy('createdAt','asc'),limit(200)),snap=>{const msgs=snap.docs.map(d=>d.data());$('#messages').innerHTML=msgs.length?msgs.map(m=>`<div class="message ${m.senderUid===user.uid?'mine':''}">${esc(m.text)}<small>${m.senderUid===user.uid?'Ty':esc(m.senderName||'Użytkownik')}</small></div>`).join(''):'<div class="empty">Napisz pierwszą wiadomość.</div>';$('#messages').scrollTop=$('#messages').scrollHeight},err=>{if(user?.uid!==uid)return;console.error('Błąd wiadomości:',err.code,err.message,err);if(err.code==='permission-denied')toast('Brak dostępu do tej rozmowy. Sprawdź reguły Firestore.');else if(err.code!=='unavailable')toast('Nie udało się pobrać rozmowy.')})}
 $('#chatForm').onsubmit=async e=>{e.preventDefault();if(!activeChatId)return toast('Wybierz rozmowę.');const form=e.currentTarget,text=form.text.value.trim();if(!text)return;const chat=chats.find(c=>c.id===activeChatId),recipientUid=chat?.participantUids?.find(uid=>uid!==user.uid);try{await addDoc(collection(db,'chats',activeChatId,'messages'),{senderUid:user.uid,senderName:userProfile?.displayName||'Użytkownik',text,createdAt:serverTimestamp()});const changes={lastMessage:text.slice(0,120),lastSenderUid:user.uid,updatedAt:serverTimestamp(),[`unreadCounts.${user.uid}`]:0};if(recipientUid)changes[`unreadCounts.${recipientUid}`]=increment(1);await updateDoc(doc(db,'chats',activeChatId),changes);form.reset()}catch(err){console.error(err);toast('Nie udało się wysłać wiadomości.')}};
 
 document.addEventListener('keydown',e=>{if(e.key==='Escape')$$('.modal-backdrop.active').forEach(x=>closeModal(x.id))});renderListings();
