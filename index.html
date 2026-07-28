@@ -27,6 +27,7 @@
     <button class="btn ghost desktop-only" id="favoritesBtn">❤️ Ulubione</button>
     <button class="btn ghost hidden" id="chatBtn">💬 Wiadomości</button>
     <button class="btn ghost" id="authBtn">Zaloguj się</button>
+    <button class="btn ghost" id="registerBtn">Załóż konto</button>
     <button class="btn primary" id="addBtn">+ Dodaj ogłoszenie</button>
     <button class="user-chip hidden" id="userMenu"><span class="avatar" id="navAvatar">U</span><span id="navName">Profil</span></button>
   </div>
@@ -52,7 +53,7 @@
 <form id="loginForm"><div class="field"><label>E-mail</label><input class="control" name="email" type="email" required></div><div class="field"><label>Hasło</label><input class="control" name="password" type="password" minlength="6" required></div><div class="form-actions"><button class="btn primary">Zaloguj się</button></div></form>
 <form id="registerForm" class="hidden"><div class="form-grid"><div class="field full"><label>Nazwa wyświetlana</label><input class="control" name="displayName" required maxlength="40"></div><div class="field"><label>E-mail</label><input class="control" name="email" type="email" required></div><div class="field"><label>Hasło</label><input class="control" name="password" type="password" minlength="6" required></div></div><div class="form-actions"><button class="btn primary">Utwórz konto</button></div></form></div></div>
 
-<div class="modal-backdrop" id="listingModal"><div class="modal"><div class="modal-head"><h2>Dodaj ogłoszenie</h2><button class="close" data-close="listingModal">×</button></div><div class="notice">Ogłoszenie pojawi się publicznie po zatwierdzeniu przez administratora.</div><form id="listingForm"><div class="form-grid"><div class="field"><label>Platforma</label><select class="control" name="service" id="serviceSelect" required><option value="">Wybierz</option><option>YouTube Premium</option><option>Spotify</option><option>Apple One</option><option>Microsoft 365</option><option>Canva</option><option value="__other__">Inna</option></select></div><div class="field hidden" id="customServiceField"><label>Własna platforma</label><input class="control" name="customService" id="customService" maxlength="60"></div><div class="field"><label>Nazwa planu</label><input class="control" name="plan" required maxlength="60"></div><div class="field"><label>Cena / osoba / mies.</label><input class="control" name="price" type="number" min="0" max="999" step="0.01" required></div><div class="field"><label>Wolne miejsca</label><input class="control" name="spots" type="number" min="1" max="10" value="1" required></div><div class="field full"><label>Tagi</label><input class="control" name="tags" maxlength="120" placeholder="BLIK, bez kaucji, start od razu"></div><div class="field full"><label>Opis</label><textarea class="control" name="description" maxlength="500" required></textarea></div></div><div class="form-actions"><button type="button" class="btn ghost" data-close="listingModal">Anuluj</button><button class="btn primary">Wyślij do moderacji</button></div></form></div></div>
+<div class="modal-backdrop" id="listingModal"><div class="modal"><div class="modal-head"><h2>Dodaj ogłoszenie</h2><button class="close" data-close="listingModal">×</button></div><div class="notice">Ogłoszenia mogą dodawać wyłącznie zalogowani użytkownicy. Po wysłaniu ogłoszenie pojawi się publicznie po zatwierdzeniu przez administratora.</div><form id="listingForm"><div class="form-grid"><div class="field"><label>Platforma</label><select class="control" name="service" id="serviceSelect" required><option value="">Wybierz</option><option>YouTube Premium</option><option>Spotify</option><option>Apple One</option><option>Microsoft 365</option><option>Canva</option><option value="__other__">Inna</option></select></div><div class="field hidden" id="customServiceField"><label>Własna platforma</label><input class="control" name="customService" id="customService" maxlength="60"></div><div class="field"><label>Nazwa planu</label><input class="control" name="plan" required maxlength="60"></div><div class="field"><label>Cena / osoba / mies.</label><input class="control" name="price" type="number" min="0" max="999" step="0.01" required></div><div class="field"><label>Wolne miejsca</label><input class="control" name="spots" type="number" min="1" max="10" value="1" required></div><div class="field full"><label>Tagi</label><input class="control" name="tags" maxlength="120" placeholder="BLIK, bez kaucji, start od razu"></div><div class="field full"><label>Opis</label><textarea class="control" name="description" maxlength="500" required></textarea></div></div><div class="form-actions"><button type="button" class="btn ghost" data-close="listingModal">Anuluj</button><button class="btn primary">Wyślij do moderacji</button></div></form></div></div>
 
 <div class="modal-backdrop" id="profileModal"><div class="modal wide"><div class="modal-head"><h2>Profil użytkownika</h2><button class="close" data-close="profileModal">×</button></div><div class="profile-grid"><div class="profile-side"><div class="avatar profile-big" id="profileAvatar">U</div><strong id="profileName">Użytkownik</strong><p class="muted" id="profileRating">Brak ocen</p><button class="btn danger" id="logoutBtn">Wyloguj</button></div><div><form id="profileForm"><div class="form-grid"><div class="field"><label>Nazwa</label><input class="control" name="displayName" maxlength="40" required></div><div class="field"><label>Miasto</label><input class="control" name="city" maxlength="50"></div><div class="field full"><label>O mnie</label><textarea class="control" name="bio" maxlength="300"></textarea></div></div><div class="form-actions"><button class="btn primary">Zapisz profil</button></div></form><h3>Moje ogłoszenia</h3><div id="myListings"></div></div></div></div></div>
 
@@ -84,16 +85,64 @@ function requireAuth(action){if(!user){openModal('authModal');toast('Zaloguj si�
 const savedTheme=localStorage.getItem('rs-theme')||'light';document.documentElement.dataset.theme=savedTheme;$('#themeToggle').textContent=savedTheme==='dark'?'☀️':'🌙';
 $('#themeToggle').onclick=()=>{const next=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=next;localStorage.setItem('rs-theme',next);$('#themeToggle').textContent=next==='dark'?'☀️':'🌙'};
 
-$$('[data-auth-tab]').forEach(b=>b.onclick=()=>{$$('[data-auth-tab]').forEach(x=>{x.classList.toggle('active',x===b);x.classList.toggle('ghost',x!==b)});$('#loginForm').classList.toggle('hidden',b.dataset.authTab!=='login');$('#registerForm').classList.toggle('hidden',b.dataset.authTab!=='register')});
-$('#authBtn').onclick=()=>openModal('authModal');$('#userMenu').onclick=()=>openProfile();$('#chatBtn').onclick=()=>openModal('chatModal');
-function openAdd(){requireAuth(()=>openModal('listingModal'))}$('#addBtn').onclick=openAdd;$('#heroAdd').onclick=openAdd;
+function showAuthTab(tab='login'){
+  $$('[data-auth-tab]').forEach(x=>{
+    const active=x.dataset.authTab===tab;
+    x.classList.toggle('active',active);
+    x.classList.toggle('ghost',!active);
+  });
+  $('#loginForm').classList.toggle('hidden',tab!=='login');
+  $('#registerForm').classList.toggle('hidden',tab!=='register');
+}
+$$('[data-auth-tab]').forEach(b=>b.onclick=()=>showAuthTab(b.dataset.authTab));
+$('#authBtn').onclick=()=>{showAuthTab('login');openModal('authModal')};
+$('#registerBtn').onclick=()=>{showAuthTab('register');openModal('authModal')};
+$('#userMenu').onclick=()=>openProfile();
+$('#chatBtn').onclick=()=>requireAuth(()=>openModal('chatModal'));
+function openAdd(){
+  if(!user){
+    showAuthTab('register');
+    openModal('authModal');
+    toast('Załóż konto lub zaloguj się, aby dodać ogłoszenie.');
+    return;
+  }
+  openModal('listingModal');
+}
+$('#addBtn').onclick=openAdd;$('#heroAdd').onclick=openAdd;
 $('#favoritesBtn').onclick=()=>requireAuth(()=>{onlyFavorites=true;renderListings();document.querySelector('#ogloszenia').scrollIntoView()});$('#onlyFavoritesBtn').onclick=()=>requireAuth(()=>{onlyFavorites=true;renderListings()});$('#allListingsBtn').onclick=()=>{onlyFavorites=false;renderListings()};
 
 $('#registerForm').onsubmit=async e=>{e.preventDefault();const form=e.currentTarget,d=Object.fromEntries(new FormData(form)),btn=e.submitter;btn.disabled=true;try{const cred=await createUserWithEmailAndPassword(auth,d.email,d.password);await updateProfile(cred.user,{displayName:d.displayName.trim()});await setDoc(doc(db,'users',cred.user.uid),{uid:cred.user.uid,displayName:d.displayName.trim(),email:d.email.toLowerCase(),city:'',bio:'',role:'user',status:'active',createdAt:serverTimestamp(),updatedAt:serverTimestamp()});form.reset();closeModal('authModal');toast('Konto zostało utworzone.')}catch(err){console.error(err);toast(err.code==='auth/email-already-in-use'?'Ten e-mail jest już używany.':'Nie udało się utworzyć konta.')}finally{btn.disabled=false}};
 $('#loginForm').onsubmit=async e=>{e.preventDefault();const form=e.currentTarget,d=Object.fromEntries(new FormData(form)),btn=e.submitter;btn.disabled=true;try{await signInWithEmailAndPassword(auth,d.email,d.password);form.reset();closeModal('authModal');toast('Zalogowano.')}catch(err){console.error(err);toast('Nieprawidłowy e-mail lub hasło.')}finally{btn.disabled=false}};
 $('#logoutBtn').onclick=async()=>{await signOut(auth);closeModal('profileModal');toast('Wylogowano.')};
 
-onAuthStateChanged(auth,async u=>{user=u;$('#authBtn').classList.toggle('hidden',!!u);$('#userMenu').classList.toggle('hidden',!u);$('#chatBtn').classList.toggle('hidden',!u);if(!u){userProfile=null;favorites=new Set();chats=[];renderListings();return}const ref=doc(db,'users',u.uid);let snap=await getDoc(ref);if(!snap.exists()){await setDoc(ref,{uid:u.uid,displayName:u.displayName||u.email.split('@')[0],email:u.email,city:'',bio:'',role:'user',status:'active',createdAt:serverTimestamp(),updatedAt:serverTimestamp()});snap=await getDoc(ref)}userProfile=snap.data();$('#navName').textContent=userProfile.displayName;$('#navAvatar').textContent=initials(userProfile.displayName);listenFavorites();listenChats();renderListings()});
+onAuthStateChanged(auth,async u=>{
+  user=u;
+  $('#authBtn').classList.toggle('hidden',!!u);
+  $('#registerBtn').classList.toggle('hidden',!!u);
+  $('#userMenu').classList.toggle('hidden',!u);
+  $('#chatBtn').classList.toggle('hidden',!u);
+  $('#addBtn').title=u?'Dodaj ogłoszenie':'Wymagane konto użytkownika';
+  if(!u){
+    userProfile=null;favorites=new Set();chats=[];
+    $('#navName').textContent='Profil';$('#navAvatar').textContent='U';
+    renderListings();return;
+  }
+  try{
+    const ref=doc(db,'users',u.uid);
+    let snap=await getDoc(ref);
+    if(!snap.exists()){
+      await setDoc(ref,{uid:u.uid,displayName:u.displayName||u.email.split('@')[0],email:u.email,city:'',bio:'',role:'user',status:'active',createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
+      snap=await getDoc(ref);
+    }
+    userProfile=snap.data()||{};
+  }catch(err){
+    console.error('Nie udało się pobrać profilu:',err);
+    userProfile={uid:u.uid,displayName:u.displayName||u.email?.split('@')[0]||'Użytkownik',email:u.email||'',city:'',bio:''};
+  }
+  $('#navName').textContent=userProfile.displayName||'Profil';
+  $('#navAvatar').textContent=initials(userProfile.displayName);
+  listenFavorites();listenChats();renderListings();
+});
 
 onSnapshot(query(collection(db,'listings'),where('status','==','approved')),snap=>{listings=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));renderListings()},err=>{console.error(err);$('#listings').innerHTML='<div class="empty">Nie udało się pobrać ogłoszeń. Sprawdź reguły Firestore.</div>'});
 onSnapshot(collection(db,'reviews'),snap=>{reviews=snap.docs.map(d=>({id:d.id,...d.data()}));renderListings()});
@@ -109,7 +158,31 @@ async function toggleFavorite(id){if(!requireAuth())return;const ref=doc(db,'fav
 $('#serviceSelect').onchange=()=>{const show=$('#serviceSelect').value==='__other__';$('#customServiceField').classList.toggle('hidden',!show);$('#customService').required=show};
 $('#listingForm').onsubmit=async e=>{e.preventDefault();if(!requireAuth())return;const form=e.currentTarget,d=Object.fromEntries(new FormData(form)),btn=e.submitter;btn.disabled=true;try{const service=d.service==='__other__'?d.customService.trim():d.service;await addDoc(collection(db,'listings'),{ownerUid:user.uid,ownerName:userProfile?.displayName||user.displayName||'Użytkownik',service,plan:d.plan.trim(),price:Number(d.price),spots:Number(d.spots),tags:d.tags.split(',').map(x=>x.trim()).filter(Boolean).slice(0,6),description:d.description.trim(),status:'pending',createdAt:serverTimestamp(),updatedAt:serverTimestamp()});form.reset();$('#customServiceField').classList.add('hidden');closeModal('listingModal');toast('Ogłoszenie wysłano do moderacji.')}catch(err){console.error(err);toast('Nie udało się dodać ogłoszenia.')}finally{btn.disabled=false}};
 
-async function openProfile(){if(!requireAuth())return;const snap=await getDoc(doc(db,'users',user.uid));userProfile=snap.data();$('#profileName').textContent=userProfile.displayName;$('#profileAvatar').textContent=initials(userProfile.displayName);const r=ratingFor(user.uid);$('#profileRating').textContent=r.count?`★ ${r.avg.toFixed(1)} z ${r.count} ocen`:'Brak ocen';const f=$('#profileForm');f.displayName.value=userProfile.displayName||'';f.city.value=userProfile.city||'';f.bio.value=userProfile.bio||'';const mine=await getDocs(query(collection(db,'listings'),where('ownerUid','==',user.uid)));$('#myListings').innerHTML=mine.empty?'<p class="muted">Nie masz jeszcze ogłoszeń.</p>':mine.docs.map(d=>{const x=d.data();return`<div class="review"><strong>${esc(x.service)} · ${esc(x.plan)}</strong><br><small>Status: ${esc(x.status)}</small></div>`}).join('');openModal('profileModal')}
+async function openProfile(){
+  if(!user){showAuthTab('login');openModal('authModal');return}
+  openModal('profileModal');
+  $('#myListings').innerHTML='<p class="muted">Ładowanie ogłoszeń…</p>';
+  try{
+    const snap=await getDoc(doc(db,'users',user.uid));
+    if(snap.exists())userProfile=snap.data();
+  }catch(err){console.error('Błąd profilu:',err)}
+  userProfile=userProfile||{displayName:user.displayName||user.email?.split('@')[0]||'Użytkownik',city:'',bio:''};
+  $('#profileName').textContent=userProfile.displayName||'Użytkownik';
+  $('#profileAvatar').textContent=initials(userProfile.displayName);
+  const r=ratingFor(user.uid);
+  $('#profileRating').textContent=r.count?`★ ${r.avg.toFixed(1)} z ${r.count} ocen`:'Brak ocen';
+  const f=$('#profileForm');
+  f.elements.displayName.value=userProfile.displayName||'';
+  f.elements.city.value=userProfile.city||'';
+  f.elements.bio.value=userProfile.bio||'';
+  try{
+    const mine=await getDocs(query(collection(db,'listings'),where('ownerUid','==',user.uid)));
+    $('#myListings').innerHTML=mine.empty?'<p class="muted">Nie masz jeszcze ogłoszeń.</p>':mine.docs.map(d=>{const x=d.data();return`<div class="review"><strong>${esc(x.service)} · ${esc(x.plan)}</strong><br><small>Status: ${esc(x.status||'pending')}</small></div>`}).join('');
+  }catch(err){
+    console.error('Błąd ogłoszeń użytkownika:',err);
+    $('#myListings').innerHTML='<p class="muted">Nie udało się pobrać ogłoszeń. Sprawdź reguły Firestore.</p>';
+  }
+}
 $('#profileForm').onsubmit=async e=>{e.preventDefault();const form=e.currentTarget,d=Object.fromEntries(new FormData(form));try{await updateDoc(doc(db,'users',user.uid),{displayName:d.displayName.trim(),city:d.city.trim(),bio:d.bio.trim(),updatedAt:serverTimestamp()});await updateProfile(user,{displayName:d.displayName.trim()});userProfile={...userProfile,...d};$('#navName').textContent=d.displayName;$('#navAvatar').textContent=initials(d.displayName);toast('Profil zapisany.')}catch(err){console.error(err);toast('Nie udało się zapisać profilu.')}};
 async function showPublicProfile(uid){const snap=await getDoc(doc(db,'users',uid));if(!snap.exists())return toast('Profil nie istnieje.');const p=snap.data(),rs=reviews.filter(r=>r.targetUid===uid),r=ratingFor(uid);$('#publicProfileTitle').textContent=p.displayName||'Profil';$('#publicProfileContent').innerHTML=`<div class="profile-side"><div class="avatar profile-big">${initials(p.displayName)}</div><h3>${esc(p.displayName)}</h3><p class="muted">${esc(p.city||'Miasto niepodane')}</p><p>${esc(p.bio||'Brak opisu.')}</p><p class="rating">★ ${r.count?r.avg.toFixed(1):'—'} (${r.count})</p>${user&&user.uid!==uid?`<div class="row" style="justify-content:center"><button class="btn primary" data-review-user="${uid}">Dodaj ocenę</button><button class="btn ghost" data-direct-chat="${uid}">Napisz wiadomość</button></div>`:''}</div><h3>Oceny</h3>${rs.length?rs.map(x=>`<div class="review"><strong>${'★'.repeat(Number(x.rating))}</strong><p>${esc(x.comment)}</p><small>${esc(x.authorName||'Użytkownik')}</small></div>`).join(''):'<p class="muted">Brak ocen.</p>'}`;$('#publicProfileContent [data-review-user]')?.addEventListener('click',e=>{closeModal('publicProfileModal');$('#reviewForm').targetUid.value=e.currentTarget.dataset.reviewUser;openModal('reviewModal')});$('#publicProfileContent [data-direct-chat]')?.addEventListener('click',e=>{closeModal('publicProfileModal');startChat(e.currentTarget.dataset.directChat,null)});openModal('publicProfileModal')}
 $('#reviewForm').onsubmit=async e=>{e.preventDefault();if(!requireAuth())return;const form=e.currentTarget,d=Object.fromEntries(new FormData(form));try{await addDoc(collection(db,'reviews'),{targetUid:d.targetUid,authorUid:user.uid,authorName:userProfile?.displayName||'Użytkownik',rating:Number(d.rating),comment:d.comment.trim(),createdAt:serverTimestamp()});form.reset();closeModal('reviewModal');toast('Ocena została dodana.')}catch(err){console.error(err);toast('Nie udało się dodać oceny.')}};
