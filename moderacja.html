@@ -13,11 +13,47 @@
 <script type="module">
 import {auth,db} from './firebase-config.js';
 import {signInWithEmailAndPassword,signOut,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js';
-import {collection,doc,getDocs,query,orderBy,onSnapshot,updateDoc,deleteDoc,writeBatch} from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js';
+import {collection,doc,getDoc,getDocs,query,orderBy,onSnapshot,updateDoc,deleteDoc,writeBatch} from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],esc=(v='')=>String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[c])),money=v=>new Intl.NumberFormat('pl-PL',{style:'currency',currency:'PLN'}).format(Number(v)),date=v=>v?.toDate?new Intl.DateTimeFormat('pl-PL',{dateStyle:'medium',timeStyle:'short'}).format(v.toDate()):'—';let listings=[],users=[],reviews=[],chats=[],tab='listings',unsubs=[];function toast(m){$('#toast').textContent=m;$('#toast').classList.add('show');setTimeout(()=>$('#toast').classList.remove('show'),3500)}
 const theme=localStorage.getItem('rs-theme')||'light';document.documentElement.dataset.theme=theme;$('#themeBtn').textContent=theme==='dark'?'☀️':'🌙';$('#themeBtn').onclick=()=>{const n=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=n;localStorage.setItem('rs-theme',n);$('#themeBtn').textContent=n==='dark'?'☀️':'🌙'};
-$('#loginForm').onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.currentTarget));try{await signInWithEmailAndPassword(auth,d.email,d.password)}catch(err){console.error(err);toast('Nieprawidłowy login lub brak dostępu.')}};$('#logout').onclick=()=>signOut(auth);
-onAuthStateChanged(auth,u=>{unsubs.forEach(f=>f());unsubs=[];$('#loginView').classList.toggle('hidden',!!u);$('#dashboard').classList.toggle('hidden',!u);$('#logout').classList.toggle('hidden',!u);if(!u)return;$('#adminEmail').textContent=u.email||'';listen()});
+$('#loginForm').onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.currentTarget));try{await signInWithEmailAndPassword(auth,d.email,d.password)}catch(err){console.error(err);toast('Nieprawidłowy e-mail lub hasło.')}};$('#logout').onclick=()=>signOut(auth);
+onAuthStateChanged(auth,async u=>{
+  unsubs.forEach(f=>f());
+  unsubs=[];
+
+  if(!u){
+    $('#loginView').classList.remove('hidden');
+    $('#dashboard').classList.add('hidden');
+    $('#logout').classList.add('hidden');
+    return;
+  }
+
+  try{
+    const profileSnap=await getDoc(doc(db,'users',u.uid));
+    const profile=profileSnap.exists()?profileSnap.data():{};
+    const role=String(profile.role||'').toLowerCase();
+    const allowed=role==='admin'||role==='moderator'||u.email==='admin@admin.com';
+
+    if(!allowed){
+      await signOut(auth);
+      $('#loginView').classList.remove('hidden');
+      $('#dashboard').classList.add('hidden');
+      $('#logout').classList.add('hidden');
+      toast('To konto nie ma roli administratora ani moderatora.');
+      return;
+    }
+
+    $('#loginView').classList.add('hidden');
+    $('#dashboard').classList.remove('hidden');
+    $('#logout').classList.remove('hidden');
+    $('#adminEmail').textContent=`${u.email||''} · ${role||'admin'}`;
+    listen();
+  }catch(err){
+    console.error('Błąd sprawdzania roli:',err);
+    await signOut(auth);
+    toast('Nie udało się sprawdzić uprawnień konta.');
+  }
+});
 function listen(){const configs=[['listings',v=>listings=v],['users',v=>users=v],['reviews',v=>reviews=v],['chats',v=>chats=v]];configs.forEach(([name,setter])=>{const unsub=onSnapshot(collection(db,name),snap=>{setter(snap.docs.map(d=>({id:d.id,...d.data()})));updateStats();render()},err=>{console.error(err);toast('Brak uprawnień administratora. Sprawdź e-mail w firestore.rules.')});unsubs.push(unsub)})}
 function updateStats(){$('#sPending').textContent=listings.filter(x=>x.status==='pending').length;$('#sApproved').textContent=listings.filter(x=>x.status==='approved').length;$('#sUsers').textContent=users.length;$('#sReviews').textContent=reviews.length;$('#sChats').textContent=chats.length}
 function render(){const q=$('#search').value.trim().toLowerCase(),st=$('#statusFilter').value;let data=tab==='listings'?listings:tab==='users'?users:tab==='reviews'?reviews:chats;data=data.filter(x=>JSON.stringify(x).toLowerCase().includes(q)&&(!st||x.status===st));$('#content').innerHTML=data.length?data.map(x=>tab==='listings'?listingCard(x):tab==='users'?userCard(x):tab==='reviews'?reviewCard(x):chatCard(x)).join(''):'<div class="empty">Brak danych.</div>';bindActions()}
